@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Profile {
+  id              String   @id @default(cuid())
+  nameZh          String
+  titleZh         String?
+  bioZh           String?
+  nameEn          String
+  titleEn         String?
+  bioEn           String?
+  landingKickerZh String?
+  landingKickerEn String?
+  landingHeadlineZh String?
+  landingHeadlineEn String?
+  landingSublineZh String?
+  landingSublineEn String?
+  landingCtaSecondaryZh String?
+  landingCtaSecondaryEn String?
+  landingCtaSecondaryUrlZh String?
+  landingCtaSecondaryUrlEn String?
+  locationZh      String?
+  locationEn      String?
+  defaultLocale   Locale   @default(zh)
+  avatar          String?
+  favicon         String?
+  location        String?
+  primaryColor    String   @default("#0f172a")
+  backgroundColor String   @default("#f8fafc")
+  font            FontType @default(default)
+  seoTitle        String?
+  seoDescription  String?
+  seoTitleZh      String?
+  seoTitleEn      String?
+  seoDescriptionZh String?
+  seoDescriptionEn String?
+  worksPageSize   Int      @default(8)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SocialLink {
+  id        String         @id @default(cuid())
+  platform  SocialPlatform
+  label     String
+  url       String
+  icon      String?
+  visible   Boolean        @default(true)
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Work {
+  id            String     @id @default(cuid())
+  type          WorkType
+  titleZh       String
+  descriptionZh String?
+  contentZh     String?
+  titleEn       String
+  descriptionEn String?
+  contentEn     String?
+  slugZh        String?    @unique
+  slugEn        String?    @unique
+  slug          String     @unique
+  coverImage    String?
+  tags          String
+  category      String?
+  demoLink      String?
+  sourceLink    String?
+  downloadLink  String?
+  articleLink   String?
+  publishDate   DateTime
+  visible       Boolean    @default(true)
+  featured      Boolean    @default(false)
+  views         Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  comments      Comment[]
+  workViews     WorkView[]
+
+  @@index([type, publishDate])
+}
+
+model Analytics {
+  id        String   @id @default(cuid())
+  pathname  String
+  referrer  String?
+  userAgent String?
+  country   String?
+  city      String?
+  ipHash    String?
+  timestamp DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([pathname])
+}
+
+model WorkView {
+  id        String   @id @default(cuid())
+  workId    String
+  timestamp DateTime @default(now())
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@index([timestamp])
+  @@index([workId])
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  workId    String?
+  author    String
+  email     String
+  content   String
+  parentId  String?
+  status    CommentStatus @default(pending)
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  work     Work?      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  parent   Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Comment[]  @relation("CommentReplies")
+
+  @@index([status, createdAt])
+}
+
+model Subscriber {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String?
+  status           SubscriberStatus @default(pending)
+  verifyToken      String           @unique
+  unsubscribeToken String           @unique
+  subscribeSource  String?
+  subscribedAt     DateTime         @default(now())
+  lastEmailAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  emailLogs        EmailLog[]
+
+  @@index([status])
+}
+
+model EmailLog {
+  id           String    @id @default(cuid())
+  subscriberId String
+  subject      String
+  type         EmailType
+  sentAt       DateTime  @default(now())
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@index([type, sentAt])
+}
+
+enum Locale {
+  zh
+  en
+}
+
+enum FontType {
+  default
+  serif
+  mono
+}
+
+enum SocialPlatform {
+  github
+  twitter
+  bilibili
+  xiaohongshu
+  jike
+  zhihu
+  youtube
+  email
+  wechat
+  custom
+}
+
+enum WorkType {
+  article
+  video
+  software
+  tool
+}
+
+enum CommentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum SubscriberStatus {
+  pending
+  active
+  unsubscribed
+}
+
+enum EmailType {
+  welcome
+  new_post
+  verify
+}
