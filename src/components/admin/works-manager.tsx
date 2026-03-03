@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type WheelEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -280,7 +280,7 @@ export function WorksManager({ initial }: { initial: WorkItem[] }) {
       {createOpen ? (
         <div className="fixed inset-0 z-[130] bg-slate-900/55 p-2 md:p-6" onClick={() => setCreateOpen(false)}>
           <section
-            className="h-full overflow-auto rounded-2xl bg-white p-4 md:p-6"
+            className="h-full overflow-auto rounded-2xl bg-white p-4 pb-24 md:p-6 md:pb-28"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
@@ -457,20 +457,24 @@ export function WorksManager({ initial }: { initial: WorkItem[] }) {
               )}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-              <button className="rounded bg-slate-900 px-3 py-2 text-sm text-white" onClick={create}>
-                创建
-              </button>
-              <span className="self-center text-sm text-slate-500">{message}</span>
-              <button
-                type="button"
-                className="rounded bg-slate-200 px-5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
-                onClick={() => setCreateOpen(false)}
-              >
-                关闭
-              </button>
-            </div>
           </section>
+
+          <div
+            className="fixed bottom-4 right-4 z-[150] flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur md:bottom-7 md:right-7"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="rounded bg-slate-900 px-3 py-2 text-sm text-white" onClick={create}>
+              创建
+            </button>
+            <span className="self-center text-sm text-slate-500">{message}</span>
+            <button
+              type="button"
+              className="rounded bg-slate-200 px-5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+              onClick={() => setCreateOpen(false)}
+            >
+              关闭
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -620,7 +624,7 @@ export function WorksManager({ initial }: { initial: WorkItem[] }) {
       {editOpen && selected ? (
         <div className="fixed inset-0 z-[130] bg-slate-900/55 p-2 md:p-6" onClick={() => setEditOpen(false)}>
           <section
-            className="h-full overflow-auto rounded-2xl bg-white p-4 md:p-6"
+            className="h-full overflow-auto rounded-2xl bg-white p-4 pb-24 md:p-6 md:pb-28"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="grid gap-3">
@@ -820,34 +824,38 @@ export function WorksManager({ initial }: { initial: WorkItem[] }) {
                 />
               )}
 
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <button className="rounded bg-slate-900 px-3 py-2 text-sm text-white" onClick={() => update(selected)}>
-                  保存更新
-                </button>
-                <button
-                  className="rounded bg-rose-600 px-3 py-2 text-sm text-white"
-                  onClick={() => remove(selected.id, selected.titleZh || selected.titleEn)}
-                >
-                  删除作品
-                </button>
-                {editSaveResult ? (
-                  <span className={`self-center text-sm ${editSaveResult.ok ? "text-emerald-600" : "text-rose-600"}`}>
-                    {editSaveResult.text}
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  className="rounded bg-slate-200 px-5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
-                  onClick={() => {
-                    setEditOpen(false);
-                    setEditSaveResult(null);
-                  }}
-                >
-                  关闭
-                </button>
-              </div>
             </div>
           </section>
+
+          <div
+            className="fixed bottom-4 right-4 z-[150] flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur md:bottom-7 md:right-7"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="rounded bg-slate-900 px-3 py-2 text-sm text-white" onClick={() => update(selected)}>
+              保存更新
+            </button>
+            <button
+              className="rounded bg-rose-600 px-3 py-2 text-sm text-white"
+              onClick={() => remove(selected.id, selected.titleZh || selected.titleEn)}
+            >
+              删除作品
+            </button>
+            {editSaveResult ? (
+              <span className={`self-center text-sm ${editSaveResult.ok ? "text-emerald-600" : "text-rose-600"}`}>
+                {editSaveResult.text}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="rounded bg-slate-200 px-5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+              onClick={() => {
+                setEditOpen(false);
+                setEditSaveResult(null);
+              }}
+            >
+              关闭
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -911,8 +919,19 @@ function MarkdownEditor({
   uploading: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const syncingFromRef = useRef<"editor" | "preview" | null>(null);
+  const releaseSyncLockRafRef = useRef<number | null>(null);
   const [tip, setTip] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (releaseSyncLockRafRef.current) {
+        cancelAnimationFrame(releaseSyncLockRafRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -1008,6 +1027,57 @@ function MarkdownEditor({
     setTip("已插入粘贴图片");
   }
 
+  function syncScrollByRatio(source: HTMLElement, target: HTMLElement, direction: "editor" | "preview") {
+    const sourceScrollable = source.scrollHeight - source.clientHeight;
+    const targetScrollable = target.scrollHeight - target.clientHeight;
+    const ratio = sourceScrollable > 0 ? source.scrollTop / sourceScrollable : 0;
+    target.scrollTop = ratio * Math.max(0, targetScrollable);
+
+    syncingFromRef.current = direction;
+    if (releaseSyncLockRafRef.current) cancelAnimationFrame(releaseSyncLockRafRef.current);
+    releaseSyncLockRafRef.current = requestAnimationFrame(() => {
+      syncingFromRef.current = null;
+      releaseSyncLockRafRef.current = null;
+    });
+  }
+
+  function onEditorScroll() {
+    const source = textareaRef.current;
+    const target = previewRef.current;
+    if (!source || !target) return;
+    if (syncingFromRef.current === "preview") return;
+    syncScrollByRatio(source, target, "editor");
+  }
+
+  function onPreviewScroll() {
+    const source = previewRef.current;
+    const target = textareaRef.current;
+    if (!source || !target) return;
+    if (syncingFromRef.current === "editor") return;
+    syncScrollByRatio(source, target, "preview");
+  }
+
+  function onLinkedWheel(side: "editor" | "preview") {
+    return (event: WheelEvent<HTMLElement>) => {
+      const editor = textareaRef.current;
+      const preview = previewRef.current;
+      if (!editor || !preview) return;
+      if (event.ctrlKey) return;
+
+      const primary = side === "editor" ? editor : preview;
+      const secondary = side === "editor" ? preview : editor;
+      const max = primary.scrollHeight - primary.clientHeight;
+      if (max <= 0) return;
+
+      const nextTop = Math.min(Math.max(primary.scrollTop + event.deltaY, 0), max);
+      if (nextTop === primary.scrollTop) return;
+
+      event.preventDefault();
+      primary.scrollTop = nextTop;
+      syncScrollByRatio(primary, secondary, side);
+    };
+  }
+
   function renderEditorPane(fullscreen = false) {
     return (
       <>
@@ -1081,11 +1151,16 @@ function MarkdownEditor({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onPaste={onPaste}
+            onScroll={onEditorScroll}
+            onWheel={onLinkedWheel("editor")}
           />
           <div
+            ref={previewRef}
             className={`markdown-preview overflow-auto rounded border border-slate-200 bg-white p-3 text-sm ${
               fullscreen ? "h-full" : "min-h-[520px]"
             }`}
+            onScroll={onPreviewScroll}
+            onWheel={onLinkedWheel("preview")}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeHighlight]}>
               {value}

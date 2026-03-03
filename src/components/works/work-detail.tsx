@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { isValidElement, type HTMLAttributes, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -10,6 +11,7 @@ import { t } from "@/lib/messages";
 import { CommentBoard } from "@/components/works/comment-board";
 import { BackNavButton } from "@/components/common/back-nav-button";
 import { LanguageSwitcher } from "@/components/common/language-switcher";
+import { WorkTocPanel } from "@/components/works/work-toc-panel";
 
 type WorkDetailProps = {
   locale: AppLocale;
@@ -53,6 +55,19 @@ export function WorkDetail({ locale, work, theme }: WorkDetailProps) {
   const primary = normalizeHexColor(theme?.primaryColor, "#1f6feb");
   const background = normalizeHexColor(theme?.backgroundColor, "#eef3fb");
   const accentSoft = hexToRgba(primary, 0.18);
+  const usedHeadingIds = new Map<string, number>();
+
+  const renderHeading =
+    (Tag: "h1" | "h2" | "h3" | "h4") =>
+    ({ children, ...props }: HTMLAttributes<HTMLHeadingElement>) => {
+      const text = getNodeText(children);
+      const id = nextHeadingId(text, usedHeadingIds);
+      return (
+        <Tag id={id} {...props}>
+          {children}
+        </Tag>
+      );
+    };
 
   return (
     <main
@@ -63,7 +78,7 @@ export function WorkDetail({ locale, work, theme }: WorkDetailProps) {
     >
       <LanguageSwitcher currentLocale={locale} zhPath={`/work/${zhSlug}`} enPath={`/en/work/${enSlug}`} />
 
-      <div className="mb-3">
+      <div className="fixed left-4 top-16 z-50 md:left-7 md:top-20">
         <BackNavButton fallbackHref={prefix || "/"} label={t(locale, "back")} />
       </div>
 
@@ -105,6 +120,10 @@ export function WorkDetail({ locale, work, theme }: WorkDetailProps) {
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw, rehypeHighlight]}
               components={{
+                h1: renderHeading("h1"),
+                h2: renderHeading("h2"),
+                h3: renderHeading("h3"),
+                h4: renderHeading("h4"),
                 img: ({ src, alt }) => {
                   const normalizedSrc = normalizeMarkdownAssetUrl(src || "");
                   return (
@@ -122,6 +141,7 @@ export function WorkDetail({ locale, work, theme }: WorkDetailProps) {
             </p>
           )}
         </div>
+        {hasContent ? <WorkTocPanel content={content ?? ""} locale={locale} /> : null}
 
         <div className="mt-6 flex flex-wrap gap-2">
           {toTags(work.tags).map((tag) => (
@@ -245,4 +265,31 @@ function normalizeMarkdownAssetUrl(src: string) {
   if (value.startsWith("/")) return value;
   if (value.startsWith("./")) return value.slice(1);
   return `/${value}`;
+}
+
+function getNodeText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(getNodeText).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return getNodeText(node.props.children);
+  return "";
+}
+
+function nextHeadingId(text: string, used: Map<string, number>) {
+  const base = slugifyHeading(text);
+  const count = used.get(base) ?? 0;
+  used.set(base, count + 1);
+  return count === 0 ? base : `${base}-${count}`;
+}
+
+function slugifyHeading(value: string) {
+  const normalized = value
+    .toLowerCase()
+    .trim()
+    .replace(/<[^>]+>/g, "")
+    .replace(/[^\w\u4e00-\u9fa5\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || "section";
 }
