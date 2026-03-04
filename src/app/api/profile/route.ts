@@ -4,6 +4,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdminApi } from "@/lib/permissions";
 
+export const dynamic = "force-dynamic";
+
 function normalizeWorksPageSize(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 8;

@@ -74,7 +74,7 @@ async function uploadToLocal(buffer: Buffer, filename: string) {
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadDir, { recursive: true });
   await writeFile(path.join(uploadDir, filename), buffer);
-  return `/uploads/${filename}`;
+  return `/api/files/${filename}`;
 }
 
 async function uploadToS3(buffer: Buffer, key: string, contentType: string) {
