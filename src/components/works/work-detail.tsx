@@ -71,7 +71,7 @@ export function WorkDetail({ locale, work, theme }: WorkDetailProps) {
 
   return (
     <main
-      className="mx-auto min-h-screen max-w-5xl px-4 pb-8 pt-5 md:px-7 md:pt-8"
+      className="mx-auto min-h-screen max-w-[1120px] px-4 pb-8 pt-5 md:px-7 md:pt-8"
       style={{
         background: `radial-gradient(circle at 90% 8%, ${hexToRgba(primary, 0.2)} 0%, ${background} 40%, #f9fbff 68%, #ffffff 100%)`
       }}
@@ -83,7 +83,7 @@ export function WorkDetail({ locale, work, theme }: WorkDetailProps) {
       </div>
 
       <article
-        className="rounded-[28px] bg-white/92 p-6 shadow-[0_20px_48px_rgba(15,23,42,0.08)] md:p-8"
+        className="rounded-[28px] bg-white/92 p-6 shadow-[0_20px_48px_rgba(15,23,42,0.08)] md:p-9"
         style={{ border: `1px solid ${accentSoft}` }}
       >
         <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{work.type}</div>
