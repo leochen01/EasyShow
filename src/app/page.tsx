@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { LandingPage } from "@/components/home/landing-page";
 import { getFeaturedWorks, getLatestWorks, getProfile, getVisibleLinks } from "@/lib/content";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const profile = await getProfile();
   const fallbackTitle = "tellme.fun | 个人品牌与作品集";

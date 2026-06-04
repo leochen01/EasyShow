@@ -124,7 +124,9 @@ npm run dev
 
 | 变量 | 说明 |
 | --- | --- |
-| `DATABASE_URL` | 数据库连接（默认 sqlite: `file:./dev.db`） |
+| `DATABASE_URL` | Supabase transaction-mode pooler，应用运行时使用，Vercel/Serverless 推荐 |
+| `DIRECT_URL` | Supabase session-mode pooler，Prisma `db push`/迁移使用 |
+| `SQLITE_SOURCE` | 可选，从本地 SQLite 导入 Supabase 时使用，默认 `prisma/dev.db` |
 | `NEXTAUTH_URL` | NextAuth 回调地址 |
 | `NEXTAUTH_SECRET` | NextAuth 密钥 |
 | `ADMIN_EMAIL` | 初始化管理员邮箱 |
@@ -132,14 +134,14 @@ npm run dev
 | `RESEND_API_KEY` | Resend API Key |
 | `RESEND_FROM_EMAIL` | 发件人（如 `EasyShow <no-reply@yourdomain.com>`） |
 | `NEXT_PUBLIC_SITE_URL` | 站点公网地址（用于邮件链接拼接） |
-| `STORAGE_PROVIDER` | `local` 或 `s3` |
-| `S3_BUCKET` | S3/OSS Bucket 名称 |
-| `S3_REGION` | 区域 |
-| `S3_ENDPOINT` | 可选，自建/兼容服务地址 |
+| `STORAGE_PROVIDER` | `local` 或 `s3`，生产推荐 `s3` |
+| `S3_BUCKET` | Supabase Storage bucket，当前为 `easyshow` |
+| `S3_REGION` | Supabase 项目区域，当前为 `ap-southeast-2` |
+| `S3_ENDPOINT` | Supabase Storage S3 endpoint，当前为 `https://bklddssjwyiyddxfanld.storage.supabase.co/storage/v1/s3` |
 | `S3_ACCESS_KEY_ID` | Access Key |
 | `S3_SECRET_ACCESS_KEY` | Secret Key |
-| `S3_PUBLIC_BASE_URL` | 可选，公开访问前缀 |
-| `S3_FORCE_PATH_STYLE` | 可选，`true/false` |
+| `S3_PUBLIC_BASE_URL` | Supabase public object base URL，当前为 `https://bklddssjwyiyddxfanld.supabase.co/storage/v1/object/public/easyshow` |
+| `S3_FORCE_PATH_STYLE` | Supabase Storage S3 需要 `true` |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Turnstile 前端 site key（可选） |
 | `TURNSTILE_SECRET_KEY` | Turnstile 服务端 secret（可选） |
 
@@ -151,11 +153,126 @@ npm run build            # 生产构建
 npm run start            # 生产启动
 npm run lint             # 代码检查
 npm run prisma:generate  # 生成 Prisma Client
-npm run prisma:migrate   # 执行开发迁移
+npm run prisma:migrate   # 推送 Prisma schema 到当前数据库
+npm run prisma:push      # 将 Prisma schema 推送到 Supabase/PostgreSQL
 npm run prisma:seed      # 初始化种子数据
+npm run prisma:seed:supabase # 从本地 prisma/dev.db 导入 Profile/SocialLink/Work
 ```
 
+## Supabase Storage 上传配置
+
+当前项目已使用 Supabase Storage 的 S3-compatible endpoint 作为图片上传存储。
+
+已创建公开 bucket：
+
+```text
+easyshow
+```
+
+非密钥环境变量：
+
+```env
+STORAGE_PROVIDER="s3"
+S3_BUCKET="easyshow"
+S3_REGION="ap-southeast-2"
+S3_ENDPOINT="https://bklddssjwyiyddxfanld.storage.supabase.co/storage/v1/s3"
+S3_PUBLIC_BASE_URL="https://bklddssjwyiyddxfanld.supabase.co/storage/v1/object/public/easyshow"
+S3_FORCE_PATH_STYLE="true"
+```
+
+密钥获取路径：
+
+```text
+Supabase Dashboard > EasyShow > Storage > S3 Configuration > Access keys
+```
+
+生成后填入：
+
+```env
+S3_ACCESS_KEY_ID="..."
+S3_SECRET_ACCESS_KEY="..."
+```
+
+注意：Supabase Storage S3 access keys 是服务端密钥，不要放到 `NEXT_PUBLIC_` 变量，也不要提交到 Git。
+
 ## 部署建议
+
+### Cloudflare Workers
+适用：希望部署在 Cloudflare 边缘网络，并通过 Workers 承载 Next.js SSR。
+
+当前仓库已加入 Cloudflare/OpenNext 部署脚本与配置文件：
+- [open-next.config.ts](/Users/chenxiangli/Documents/EasyShow/open-next.config.ts)
+- [wrangler.jsonc](/Users/chenxiangli/Documents/EasyShow/wrangler.jsonc)
+
+部署前请注意：
+- Cloudflare 环境不支持本地文件上传目录，因此必须使用 `S3/R2` 兼容对象存储。
+- 生产数据库不建议使用本地 SQLite，建议改为外部 PostgreSQL。
+- 当前 Prisma 方案更适合 Node/Vercel/自有服务器。若要在 Cloudflare Workers 长期稳定运行，建议进一步切换到 Prisma 官方 Cloudflare 兼容方案或改用 HTTP 型数据库访问层。
+
+1. 安装依赖
+
+```bash
+cd /path/to/EasyShow
+npm install
+```
+
+2. 登录 Cloudflare
+
+```bash
+npx wrangler login
+```
+
+3. 配置生产环境变量和 Secret
+
+```bash
+npx wrangler secret put NEXTAUTH_SECRET
+npx wrangler secret put ADMIN_EMAIL
+npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put S3_ACCESS_KEY_ID
+npx wrangler secret put S3_SECRET_ACCESS_KEY
+```
+
+可公开变量建议写入 `wrangler.jsonc` 的 `vars` 或 Cloudflare Dashboard：
+
+```text
+DATABASE_URL
+NEXTAUTH_URL
+NEXT_PUBLIC_SITE_URL
+RESEND_FROM_EMAIL
+STORAGE_PROVIDER=s3
+S3_BUCKET
+S3_REGION
+S3_ENDPOINT
+S3_PUBLIC_BASE_URL
+S3_FORCE_PATH_STYLE
+NEXT_PUBLIC_TURNSTILE_SITE_KEY
+TURNSTILE_SECRET_KEY
+```
+
+4. 本地预览 Cloudflare 构建结果
+
+```bash
+npm run cf:preview
+```
+
+5. 正式部署
+
+```bash
+npm run cf:deploy
+```
+
+6. 生成 Cloudflare 类型（可选）
+
+```bash
+npm run cf:typegen
+```
+
+7. Cloudflare 部署后的建议检查项
+- 后台登录是否正常
+- `/api/profile`、`/api/works` 等写接口是否返回 200/401，而不是 405
+- 头像/封面上传是否直接落到 S3/R2 公网 URL
+- 邮件订阅验证与退订链接是否使用正式域名
 
 ### Vercel
 适用：快速上线、自动 CI/CD、默认 HTTPS。
@@ -208,19 +325,22 @@ vercel env add TURNSTILE_SECRET_KEY production
 vercel --prod
 ```
 
-5. 数据库迁移（必须在生产库执行）
+5. 初始化 Supabase 数据库
 
-如果你使用可直连的生产数据库，在本地执行：
+在 Supabase Dashboard 复制 PostgreSQL 连接串，写入 `DATABASE_URL` 与 `DIRECT_URL`：
+- `DATABASE_URL` 使用 transaction-mode pooler，端口通常为 `6543`，用于应用运行时。
+- `DIRECT_URL` 使用 session-mode pooler，端口通常为 `5432`，用于 Prisma 推送 schema。
 
 ```bash
-DATABASE_URL='你的生产数据库连接串' npx prisma migrate deploy
-DATABASE_URL='你的生产数据库连接串' npm run prisma:seed
+DATABASE_URL='你的 Supabase transaction pooler' DIRECT_URL='你的 Supabase session pooler' npm run prisma:push
+DATABASE_URL='你的 Supabase transaction pooler' DIRECT_URL='你的 Supabase session pooler' npm run prisma:seed:supabase
 ```
 
 说明：
 - `prisma migrate dev` 仅用于开发环境。
-- 生产请使用 `prisma migrate deploy`。
-- 若部署在 Vercel + Serverless，建议生产数据库使用 PostgreSQL。
+- 当前生产数据库目标为 Supabase PostgreSQL。
+- `prisma:seed:supabase` 会从 `SQLITE_SOURCE` 指向的本地 SQLite 文件导入已有 Profile、SocialLink、Work 数据。
+- 后台写入、留言、订阅和统计都应写入 Supabase，而不是 Vercel 打包内的本地 SQLite。
 
 ### 自有服务器
 适用：可控性高、可部署在内网或私有云。

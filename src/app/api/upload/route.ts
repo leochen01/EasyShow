@@ -53,6 +53,15 @@ export async function POST(request: Request) {
     }
   }
 
+  if (isCloudflareRuntime()) {
+    return NextResponse.json(
+      {
+        message: "Local upload storage is not supported on Cloudflare. Please configure S3/R2 compatible storage."
+      },
+      { status: 400 }
+    );
+  }
+
   const url = await uploadToLocal(buffer, filename);
   return NextResponse.json({ url, provider: "local" });
 }
@@ -68,6 +77,10 @@ function resolveProvider() {
     !!process.env.S3_SECRET_ACCESS_KEY;
 
   return hasS3Config ? "s3" : "local";
+}
+
+function isCloudflareRuntime() {
+  return !!process.env.CF_PAGES || !!process.env.CLOUDFLARE_ACCOUNT_ID || !!process.env.WORKERS_CI;
 }
 
 async function uploadToLocal(buffer: Buffer, filename: string) {

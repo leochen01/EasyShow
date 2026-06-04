@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { WorkDetail } from "@/components/works/work-detail";
-import { getProfile, getVisibleWorkSlugs, getWorkBySlug } from "@/lib/content";
+import { getProfile, getWorkBySlug } from "@/lib/content";
+
+export const dynamic = "force-dynamic";
 
 type WorkPageProps = {
   params: { slug: string };
@@ -18,8 +20,4 @@ export default async function WorkPage({ params }: WorkPageProps) {
       theme={{ primaryColor: profile?.primaryColor, backgroundColor: profile?.backgroundColor }}
     />
   );
-}
-
-export async function generateStaticParams() {
-  return getVisibleWorkSlugs();
 }

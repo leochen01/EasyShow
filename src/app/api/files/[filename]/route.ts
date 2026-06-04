@@ -6,6 +6,13 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, { params }: { params: { filename: string } }) {
+  if (isCloudflareRuntime()) {
+    return NextResponse.json(
+      { message: "Local file serving is not available on Cloudflare. Use S3/R2 public URLs instead." },
+      { status: 400 }
+    );
+  }
+
   const filename = (params.filename || "").trim();
   if (!filename || filename.includes("/") || filename.includes("\\")) {
     return NextResponse.json({ message: "invalid filename" }, { status: 400 });
@@ -24,6 +31,10 @@ export async function GET(_request: Request, { params }: { params: { filename: s
   } catch {
     return NextResponse.json({ message: "not found" }, { status: 404 });
   }
+}
+
+function isCloudflareRuntime() {
+  return !!process.env.CF_PAGES || !!process.env.CLOUDFLARE_ACCOUNT_ID || !!process.env.WORKERS_CI;
 }
 
 function contentTypeByExt(ext: string) {

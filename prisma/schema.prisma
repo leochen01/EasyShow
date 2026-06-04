@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -40,10 +41,11 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
-  sessionToken String   @unique
+  sessionToken String
   userId       String
   expires      DateTime
   createdAt    DateTime @default(now())
@@ -52,6 +54,7 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([sessionToken])
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -185,6 +188,8 @@ model Comment {
   replies  Comment[]  @relation("CommentReplies")
 
   @@index([status, createdAt])
+  @@index([workId])
+  @@index([parentId])
 }
 
 model Subscriber {
@@ -217,6 +222,7 @@ model EmailLog {
   subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
 
   @@index([type, sentAt])
+  @@index([subscriberId])
 }
 
 enum Locale {
