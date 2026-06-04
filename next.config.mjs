@@ -1,6 +1,7 @@
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-
-initOpenNextCloudflareForDev();
+if (process.env.EASYSHOW_OPENNEXT_DEV === "true") {
+  const { initOpenNextCloudflareForDev } = await import("@opennextjs/cloudflare");
+  initOpenNextCloudflareForDev();
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
